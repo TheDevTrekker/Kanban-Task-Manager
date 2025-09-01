@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kanban</title>
+  <style>
+    :root{
+      --bg: #ffffff;
+      --light-purple: #bdb4e0;           
+      --panel: #ffffff;         
+      --text: #000000c0;       
+      --muted: #bdb4e0;       
+      --gold: #d4af37;          
+      --border: #2a2359;      
+      --shadow: rgba(0,0,0,.35);
+    }
+    * { box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    a{ color: var(--gold) }
+
+    /* Header */
+    header{
+      position: relative; top:0; z-index:20;
+      display:flex; align-items:center; gap:.75rem;
+      padding:.75rem 1rem; border-bottom:1px solid var(--border);
+      background: #1e193f;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .brand{ display:flex; align-items:center; gap:.6rem; font-weight:700 }
+    .logo{ width:36px; height:36px; border-radius:10px; background: var(--gold); color:var(--border); display:grid; place-items:center; font-weight:900 }
+    .spacer{ flex:1 }
+    .chip{ background:var(--panel); color:var(--border); border:1px solid var(--border); padding:.25rem .6rem; border-radius:999px; font-size:.85rem }
+    .btn{ border:2px solid var(--gold); background:var(--panel); color:var(--border); padding:.55rem .9rem; border-radius:.6rem; cursor:pointer }
+    .btn:hover{ border: 2px solid var(--border); background-color: var(--panel); }
+    .btn.primary{ border:2px solid var(--gold); background: var(--gold); color:var(--border); font-weight:700 }
+    .btn.primary:hover{ border: 2px solid var(--border); background-color: var(--panel);}
+    .btn.danger:hover{border: 2px solid red;}
+
+    main{ max-width:1400px; margin: 1rem auto; padding: 0 1rem 2rem }
+
+    /* Card */
+    .card{ background:var(--panel); border:1px solid var(--border); border-radius:1rem; box-shadow: 0 4px 20px var(--shadow) }
+    .card .body{ padding:1rem }
+    .grid{ display:grid; gap:.75rem }
+    .grid.cols-2{ grid-template-columns: repeat(2, minmax(0,1fr)) }
+    .row{ display:flex; gap:.5rem; align-items:center }
+
+    .input, select, textarea{
+      width:100%; background:#ffffff; border:1px solid var(--border); color:var(--text);
+      padding:.6rem .75rem; border-radius:.5rem; outline:none; font-size:.95rem
+    }
+    .input::placeholder, textarea::placeholder{ color:#8e84b5 }
+    .input:focus, select:focus, textarea:focus{ border-color: var(--gold); box-shadow:0 0 0 3px rgba(212,175,55,.15) }
+    label{ font-size:.85rem; color:var(--muted) }
+
+    /* Board */
+    .toolbar{ display:flex; gap:.5rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap }
+    .columns{ display:block }
+
+    .col{ 
+      width:100%;
+      margin-bottom:2rem;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:1rem;
+      padding:1rem;
+      border-left:8px solid transparent;
+    }
+    .col[data-col="todo"]   { border-left-color:#1e90ff; }
+    .col[data-col="doing"]  { border-left-color:#d48806; }
+    .col[data-col="done"]   { border-left-color:#1e7d4f; }
+
+    .col header{ position:static; background:transparent; border:none; padding:.8rem 1rem; box-shadow:none }
+    .col h3{ margin:0; font-size:.95rem; letter-spacing:.02em }
+    .col .count{ color:var(--muted) }
+    .dropzone{ flex:1; padding:.75rem; display:grid; gap:.6rem; align-content:start; border-top:1px dashed var(--border); min-height:200px; max-height: 500px; overflow-y: auto; position: relative; overflow: visible !important;}
+    .empty{ color:var(--muted); border:1px dashed var(--border); border-radius:.75rem; padding:.8rem; text-align:center }
+
+    /* Dialog */
+    dialog{ border:1px solid var(--border); border-radius:1rem; background: var(--panel); color: var(--text); max-width: min(1200px, 95vw); box-shadow: 0 20px 40px var(--shadow) }
+    dialog::backdrop{ background: rgba(0,0,0,.4) }
+    .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:.9rem 1rem; border-bottom:1px solid var(--border) }
+    .modal-body{ padding:1rem }
+    .modal-foot{ padding:.9rem 1rem; border-top:1px solid var(--border); display:flex; gap:.5rem; justify-content:flex-end }
+
+    .member-chip{ display:inline-flex; align-items:center; gap:.4rem; background:var(--light-purple); border:1px solid var(--border); padding:.25rem .6rem; border-radius:999px; margin:.15rem 0; cursor:pointer }
+    .member-swatch{ width:12px; height:12px; border-radius:50%; border:1px solid var(--border) }
+    .todo{ color:#1e90ff; font-weight:700 }
+    .doing{ color:#d48806; font-weight:700 }
+    .done{ color:#1e7d4f; font-weight:700 }
+    .muted { color: var(--muted) }
+    .hidden { display:none !important }
+
+    /* Task Table */
+    .task-table { width:100%; border-collapse:collapse;}
+    .task-table th, .task-table td {
+      border:1px solid rgba(0, 0, 0, 0.359);
+      padding:.5rem;
+      text-align:left;
+      font-size:1rem;
+    }
+    .task-table th { background:var(--panel); color:var(--border); }
+    .task-table td { background:var(--panel); }
+    .task-table .empty { text-align:center; color:var(--muted); }
+
+    td[data-field="status"],td[data-field="priority"],td[data-field="owner"] {padding: 0;}
+    td[data-field="priority"]{max-width: 50px;}
+
+    .task-table td:hover {box-shadow: inset 0 0 0 2px var(--gold);cursor: pointer;}
+    .delete-cell {width: 0px;         }
+    .delete-task {
+      outline: transparent;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding-left: 0;
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+    }
+
+  td.editable {position: relative;transition: background 0.2s, box-shadow 0.2s;}
+  td.editable:hover {
+    background: #f9f6ff;
+    box-shadow: inset 0 0 0 2px var(--gold);
+    cursor: text;
+  }
+  td.editable input, 
+  td.editable textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    background: transparent;
+  }
+
+  td[data-field="dueDate"] {width: 99px !important;text-align: center;}
+  .due-input {max-width: 20px;}
+  .notes-cell{max-width: 250px;}
+  .status-select, .priority-select, .owner-select {background: transparent !important;color: inherit;}
+
+  /* Custom dropdown */
+  .dropdown {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    font-size: .95rem;
+    font-weight: 600;
+  }
+
+td[data-field="owner"] {
+  padding: 0;
+  width: auto;             /* Let it grow naturally */
+}
+
+  
+.owner-multi {
+  display: flex; 
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+
+  cursor: pointer;
+  padding: 2px;
+  position: relative;
+}
+
+
+.owner-badge {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px;
+  padding: 8px 10px;
+  height: 100%;           
+
+  font-size: 0.85em;
+  font-weight: 600;
+  background: #eee;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.owner-badge .owner-remove {
+  font-size: 1.4em;
+  background: transparent;
+  border: transparent;
+  font-weight: bold;
+  cursor: pointer;
+  color: var(--border);
+  margin-left: 5px;
+  margin-top: 4px;
+}
+  .owner-remove:hover{
+    transform: scale(1.1);
+    color: black;
+  }
+
+/* Plus button */
+.owner-add {
+  flex: 0 0 auto;     /* don’t shrink */
+  margin-left: 4px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  cursor: pointer;
+  font-size: 1.1em;
+}
+.owner-add:hover {
+  background: var(--gold);
+}
+
+.owner-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  min-width: 120px;
+  max-width: 180px;
+  border-radius: 8px !important;
+  display: none;
+  background: white;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.owner-dropdown.show {
+  display: block;
+}
+
+  .dropdown-selected {
+    padding: .5rem .75rem;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .dropdown-arrow {font-size: .75rem;margin-left: .5rem;opacity: .6;}
+  .dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow);
+    z-index: 10;
+    display: none;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .dropdown-list.show {display: block;}
+  .dropdown-item {padding: .6rem .75rem;cursor: pointer;color: #000 !important;   transition: filter .15s;}
+  .dropdown-item:hover {filter: brightness(1.4);  }
+  .dropdown-item[data-color]::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: .5rem;
+    vertical-align: middle;
+    background: attr(data-color color);
+    cursor: pointer;
+  }
+  .color-palette {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .2s, border .2s;
+  }
+  .color-swatch:hover { transform: scale(1.2); }
+  .color-swatch.selected { border-color: var(--gold); }
+  .status-done td[data-field="dueDate"] .due-display {text-decoration: line-through;color: var(--muted);}
+
+  .task-table td.menu-cell, .task-table td.delete-cell, .task-table th.menu-head{ border: none; }
+  .menu-head { width: 28px; }    
+  .menu-cell { position: relative; width: 28px; vertical-align: middle; margin-left: -4px; }
+
+  .task-menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+  }
+
+  .task-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: .2rem;
+    box-shadow: 0 4px 12px var(--shadow);
+    z-index: 1000; /* Increased z-index */
+    flex-direction: column;
+    min-width: 110px;
+    padding: 0;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.25s ease;
+  }
+  
+  .task-menu.show {
+    max-height: 200px;
+    opacity: 1;
+  }
+  .task-menu-item {padding: .55rem .3rem;cursor: pointer;white-space: nowrap;display: flex;align-items: center;gap: 0.5rem;  }
+  .task-menu-item:hover { background: var(--light-purple); }
+  .task-table td { vertical-align: middle; }
+
+</style>
+
+</head>
+  <body>
+    <header>
+      <div class="brand">
+        <div class="logo">KB</div>
+        <div>
+          <div style="font-weight:800; letter-spacing:.02em; color: white;">Kanban</div>
+          <div class="muted" style="font-size:.8rem">By Derik Korf</div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </header>
+
+    <main>
+      <!-- APP VIEW -->
+      <section id="appView">
+        <div class="toolbar">
+          <button id="newTaskBtn" class="btn primary">+ New task</button>
+          <button id="manageMembersBtn" class="btn">+ Members</button>
+          <button id="manageStatusesBtn" class="btn">+ Statuses</button>
+          <button id="analyticsBtn" class="btn">Analytics</button>
+          <div class="spacer"></div>
+          <div class="filter-wrapper" style="position: relative; display: inline-block; max-width: 280px;">
+            <select id="memberFilter" class="input" style="width: 100%; padding-left: 28px;">
+              <option value="">All members</option>
+            </select>
+            <span class="filter-icon" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); pointer-events: none;">
+              &#128100; 
+            </span>
+          </div>
+          <input id="search" class="input" placeholder="Search tasks…" style="max-width:260px" />
+        </div>
+
+        <div class="columns" id="boardColumns"></div>
+        </section>
+    </main>
+
+    <!-- TASK DIALOG -->
+    <dialog id="taskDialog">
+      <form method="dialog" id="taskForm">
+        <div class="modal-head">
+          <strong id="taskDialogTitle">Task</strong>
+          <button class="btn ghost" type="button" id="closeTaskDialog">✕</button>
+        </div>
+        <div class="modal-body grid">
+          <input type="hidden" id="task_id" />
+          <div class="grid cols-2">
+            <div class="grid">
+              <label>Title</label>
+              <input id="t_title" class="input" required placeholder="Write a clear task title" />
+            </div>
+            <div class="grid">
+              <label>Assignee</label>
+              <select id="t_assignee" class="input"></select>
+            </div>
+          </div>
+          <div class="grid cols-2">
+            <div class="grid">
+              <label>Due date</label>
+              <input id="t_due" class="input" type="date" />
+            </div>
+            <div class="grid">
+              <label>Priority</label>
+              <select id="t_priority" class="input">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid cols-2">
+            <div class="grid">
+              <label>Status</label>
+              <select id="t_status" class="input">
+                <option value="todo">To‑do</option>
+                <option value="doing">Doing</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid">
+            <label>Notes</label>
+            <textarea id="t_notes" class="input" rows="4" placeholder="Extra details, links, acceptance criteria…"></textarea>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" id="deleteTaskBtn" class="btn danger hidden">Delete</button>
+          <button class="btn primary" type="submit">Save task</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- MEMBER DIALOG -->
+    <dialog id="membersDialog">
+      <div class="modal-head">
+        <strong>Team members</strong>
+        <button class="btn ghost" id="closeMembers">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="memberForm" class="grid" style="margin-bottom:1rem">
+          <div class="grid cols-2">
+            <div class="grid">
+              <label>Name</label>
+              <input id="m_name" class="input" placeholder="First name" required />
+            </div>
+            <div class="grid">
+              <label>Surname</label>
+              <input id="m_surname" class="input" placeholder="Surname" required />
+            </div>
+          </div>
+          <div class="grid cols-2">
+            <div class="grid">
+              <label>Email</label>
+              <input id="m_email" class="input" type="email" placeholder="name@company.com" required />
+            </div>
+          </div>
+          <div class="grid">
+            <label>Member color</label>
+            <div id="colorPalette" class="color-palette"></div>
+            <input type="hidden" id="m_color" />
+          </div>
+          <div style="display:flex; gap:.5rem; justify-content:flex-end">
+            <button class="btn" type="reset">Clear</button>
+            <button class="btn primary" type="submit">Add member</button>
+          </div>
+        </form>
+        <div id="membersList"></div>
+      </div>
+    </dialog>
+
+      <section id="analyticsView" class="hidden" style="padding:2rem; color:#fff; min-height:100vh; margin-top: -8vh;">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; margin-bottom:1.5rem;">
+          <h2 style="margin:0; font-size:1.5rem; margin-right: 1rem; color: var(--border);">Task Analytics</h2>
+          <button id="backToBoard" class="btn">Back to Board</button>
+        </div>
+
+        <!-- Top cards -->
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; text-align:center;">
+          <div style="background:var(--border); border-radius:8px; padding:1rem;">
+            <h3>All Tasks</h3>
+            <div id="allTasksCount" style="font-size:2rem; font-weight:bold;">0</div>
+          </div>
+          <div style="background:var(--border); border-radius:8px; padding:1rem;">
+            <h3>In Progress</h3>
+            <div id="doingCount" style="font-size:2rem; font-weight:bold;">0</div>
+          </div>
+          <div style="background:var(--border); border-radius:8px; padding:1rem;">
+            <h3>Stuck</h3>
+            <div id="stuckCount" style="font-size:2rem; font-weight:bold;">0</div>
+          </div>
+          <div style="background:var(--border); border-radius:8px; padding:1rem;">
+            <h3>Done</h3>
+            <div id="doneCount" style="font-size:2rem; font-weight:bold;">0</div>
+          </div>
+        </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items: center; justify-content: center;">
+            <!-- Pie chart -->
+            <div style="background:var(--border); border-radius:8px; padding: 1rem;">
+              <h3 style="margin-bottom:0.5rem;">Tasks by Status</h3>
+              <div style="width:100%; height: 480px; align-self: center;">
+                <canvas id="taskChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Tasks by owner -->
+            <div style="background:var(--border); border-radius:8px; padding:1rem;">
+              <h3 style="margin-bottom:0.5rem;">Tasks by Owner</h3>
+              <div style="width:100%; min-height:480px;">
+                <canvas id="ownerChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STATUS DIALOG -->
+      <dialog id="statusesDialog">
+        <div class="modal-head">
+          <strong>Statuses</strong>
+          <button class="btn ghost" id="closeStatuses">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="statusForm" class="grid" style="margin-bottom:1rem">
+            <div class="grid">
+              <label>Status name</label>
+              <input id="s_name" class="input" placeholder="e.g. Review, Blocked…" required />
+            </div>
+            <div class="grid">
+              <label>Status color</label>
+                <div id="statusColorPalette" class="color-palette"></div>
+                <input type="hidden" id="s_color" name="color" />
+            </div>
+            <div style="display:flex; gap:.5rem; justify-content:flex-end">
+              <button class="btn" type="reset">Clear</button>
+              <button class="btn primary" type="submit">Add status</button>
+            </div>
+          </form>
+          <div id="statusesList"></div>
+        </div>
+      </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>
+      /* Local Storage Data Management */
+      const STORAGE_KEYS = {
+        TASKS: 'kanban_tasks',
+        MEMBERS: 'kanban_members', 
+        STATUSES: 'kanban_statuses'
+      };
+
+      // Local storage utilities
+      function saveToStorage(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+
+      function getFromStorage(key, defaultValue = []) {
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : defaultValue;
+      }
+
+      // Generate unique IDs
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+      }
+
+
+
+      /* Helpers/DOM */
+      const $ = (id) => document.getElementById(id);
+
+
+      const search = $("search");
+      const newTaskBtn = $("newTaskBtn");
+      const manageMembersBtn = $("manageMembersBtn");
+
+
+
+      // Dialogs
+      const taskDialog = $("taskDialog");
+      const taskDialogTitle = $("taskDialogTitle");
+      const taskForm = $("taskForm");
+      const deleteTaskBtn = $("deleteTaskBtn");
+
+      const t_id = $("task_id");
+      const t_title = $("t_title");
+      const t_assignee = $("t_assignee");
+      const t_due = $("t_due");
+      const t_priority = $("t_priority");
+      const t_status = $("t_status");
+      const t_notes = $("t_notes");
+
+      const membersDialog = $("membersDialog");
+      const closeMembers = $("closeMembers");
+      const memberForm = $("memberForm");
+      const membersList = $("membersList");
+      const m_name = $("m_name");
+      const m_surname = $("m_surname");
+      const m_email = $("m_email");
+      const m_color = $("m_color");
+
+      const DEFAULT_STATUSES = [
+        { id: "todo",  name: "To-do",  colorClass: "status-todo" },
+        { id: "doing", name: "Doing", colorClass: "status-doing" },
+        { id: "done",  name: "Done",  colorClass: "status-done" },
+        { id: "stuck", name: "Stuck", colorClass: "status-stuck" }
+      ];
+
+      // Define colors before they're used
+      const statusColors = {todo:   "#1e90ff", doing:  "#ffd064", done:   "#7bd88f", stuck:  "#ff6b6b"};
+      const priorityColors = {low:    "#e6dfff", medium: "#c5b3e6", high:   "#634e8a", urgent: "#311b52"};
+
+      const memberFilterEl = document.getElementById("memberFilter");
+      const searchEl = document.getElementById("search");
+      document.getElementById("closeTaskDialog").addEventListener("click", () => {
+        taskDialog.close();
+      });
+
+      memberFilterEl.addEventListener("change", () => renderBoard(allTasks));
+      searchEl.addEventListener("input", () => renderBoard(allTasks));
+
+      const manageStatusesBtn = document.getElementById("manageStatusesBtn");
+      const statusesDialog = document.getElementById("statusesDialog");
+      const closeStatuses = document.getElementById("closeStatuses");
+      const statusForm = document.getElementById("statusForm");
+      const statusesList = document.getElementById("statusesList");
+      const s_name = document.getElementById("s_name");
+      const s_color = document.getElementById("s_color");
+
+      let statusCache = new Map();
+
+
+      /* State */
+      let allTasks = []; 
+      let memberCache = new Map();
+
+
+      
+             // Initialize default data if none exists
+               if (!getFromStorage(STORAGE_KEYS.MEMBERS, []).length) {
+          console.log("Initializing sample members...");
+          // Add some sample members to get started
+          const sampleMembers = [
+            { id: generateId(), name: "John", surname: "Doe", email: "john@example.com", color: "#7c3aed", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+            { id: generateId(), name: "Jane", surname: "Smith", email: "jane@example.com", color: "#7bd88f", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+          ];
+          saveToStorage(STORAGE_KEYS.MEMBERS, sampleMembers);
+          console.log("Sample members saved:", sampleMembers);
+          
+          // Now assign some tasks to members to demonstrate multi-assignee functionality
+          setTimeout(() => {
+            const members = getFromStorage(STORAGE_KEYS.MEMBERS, []);
+            const tasks = getFromStorage(STORAGE_KEYS.TASKS, []);
+            
+            if (members.length > 0 && tasks.length > 0) {
+              const johnId = members[0].id;
+              const janeId = members[1].id;
+              
+              // Update tasks with assignments
+              const updatedTasks = tasks.map((task, index) => {
+                if (index === 0) { // Welcome to Kanban!
+                  return { ...task, assigneeIds: [] }; // Keep unassigned
+                } else if (index === 1) { // Learn the interface
+                  return { ...task, assigneeIds: [johnId] };
+                } else if (index === 2) { // Create project timeline
+                  return { ...task, assigneeIds: [janeId] };
+                } else if (index === 3) { // Optimize performance for web
+                  return { ...task, assigneeIds: [johnId, janeId] };
+                } else if (index === 4) { // Enjoy the application
+                  return { ...task, assigneeIds: [johnId] };
+                } else if (index === 5) { // Test responsive design
+                  return { ...task, assigneeIds: [janeId] };
+                }
+                return task;
+              });
+              
+              saveToStorage(STORAGE_KEYS.TASKS, updatedTasks);
+              console.log("Tasks assigned to members:", updatedTasks);
+            }
+          }, 100); // Small delay to ensure both are saved
+        }
+       
+               if (!getFromStorage(STORAGE_KEYS.TASKS, []).length) {
+          console.log("Initializing sample tasks...");
+          // Add some sample tasks to get started
+          const sampleTasks = [
+            { 
+              id: generateId(), 
+              title: "Welcome to Kanban!", 
+              assigneeIds: [], 
+              dueDate: null, 
+              priority: "medium", 
+              status: "todo", 
+              notes: "You can edit, move, and delete tasks as needed.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+            { 
+              id: generateId(), 
+              title: "Learn the interface", 
+              assigneeIds: [], 
+              dueDate: null, 
+              priority: "low", 
+              status: "doing", 
+              notes: "Explore the different features like adding members, creating statuses, and using the analytics.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+            { 
+              id: generateId(), 
+              title: "Using this application", 
+              assigneeIds: [], 
+              dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+              priority: "high", 
+              status: "stuck", 
+              notes: "Enjoy the application to its full potential.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+            { 
+              id: generateId(), 
+              title: "Optimize performance for web", 
+              assigneeIds: [], 
+              dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+              priority: "low", 
+              status: "done", 
+              notes: "Compression, minification, and caching for better performance.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+            { 
+              id: generateId(), 
+              title: "Enjoy the application", 
+              assigneeIds: [], 
+              dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+              priority: "urgent", 
+              status: "doing", 
+              notes: "Utilize the application to its full potential.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+            { 
+              id: generateId(), 
+              title: "Test responsive design", 
+              assigneeIds: [], 
+              dueDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+              priority: "high", 
+              status: "todo", 
+              notes: "Test portfolio on various devices and screen sizes to ensure mobile-first responsiveness.", 
+              createdAt: new Date().toISOString(), 
+              updatedAt: new Date().toISOString() 
+            },
+          ];
+          
+          saveToStorage(STORAGE_KEYS.TASKS, sampleTasks);
+          console.log("Sample tasks saved:", sampleTasks);
+        }
+      
+
+
+             /* Data loading from local storage */
+       async function startRealtime(){
+         console.log("Starting realtime data loading...");
+         await ensureCoreStatuses();
+         console.log("Core statuses ensured");
+
+         // Load data from local storage
+         loadMembers();
+         console.log("Members loaded:", memberCache.size);
+         loadTasks();
+         console.log("Tasks loaded:", allTasks.length);
+         loadStatuses();
+         console.log("Statuses loaded:", statusCache.size);
+
+         // Render everything
+         renderMembersPanel();
+         populateAssigneeSelect();
+         renderStatusesPanel();
+         renderDynamicColumns();
+         renderBoard(allTasks);
+         console.log("Board rendering complete");
+       }
+
+             // Initialize the app after DOM is loaded
+       document.addEventListener('DOMContentLoaded', () => {
+         console.log("DOM loaded, starting app...");
+         startRealtime();
+       });
+
+
+
+      function loadMembers() {
+        const members = getFromStorage(STORAGE_KEYS.MEMBERS, []);
+        memberCache = new Map(members.map(m => [m.id, m]));
+      }
+
+      function loadTasks() {
+        allTasks = getFromStorage(STORAGE_KEYS.TASKS, []);
+      }
+
+             function loadStatuses() {
+         statusCache = new Map();
+         
+         // Load all statuses from storage (including defaults)
+         const allStatuses = getFromStorage(STORAGE_KEYS.STATUSES, []);
+         
+         // If no statuses in storage, initialize with defaults
+         if (allStatuses.length === 0) {
+           DEFAULT_STATUSES.forEach(s => {
+             statusCache.set(s.id, { 
+               id: s.id, 
+               name: s.name, 
+               color: statusColors[s.id] || "#cccccc" 
+             });
+           });
+         } else {
+           // Load from storage
+           allStatuses.forEach(s => {
+             statusCache.set(s.id, s);
+           });
+         }
+         
+         console.log("Loaded statuses:", [...statusCache.entries()]);
+       }
+
+             /* Seed core statuses */
+       async function ensureCoreStatuses() {
+         // Check if we need to initialize default statuses in storage
+         const existingStatuses = getFromStorage(STORAGE_KEYS.STATUSES, []);
+         const hasDefaults = DEFAULT_STATUSES.every(s => 
+           existingStatuses.some(existing => existing.id === s.id)
+         );
+         
+         if (!hasDefaults) {
+           const defaultStatuses = DEFAULT_STATUSES.map(s => ({
+             id: s.id,
+             name: s.name,
+             color: statusColors[s.id] || "#cccccc",
+             createdAt: new Date().toISOString(),
+             isDefault: true
+           }));
+           
+           // Save to storage
+           saveToStorage(STORAGE_KEYS.STATUSES, defaultStatuses);
+           
+           // Also update the status cache immediately
+           defaultStatuses.forEach(s => {
+             statusCache.set(s.id, s);
+           });
+         }
+       }
+
+      // Filter dropdown
+      function populateAssigneeSelect(){
+        const filterOpts = ['<option value="">All members</option>'];
+        for (const [id, m] of memberCache){
+          filterOpts.push(`<option value="${id}">${escapeHtml(m.name)}</option>`); 
+        }
+        memberFilter.innerHTML = filterOpts.join("");
+
+        // Update task dialog assignee select to support multiple selection
+        const taskOpts = [];
+        for (const [id, m] of memberCache){
+          taskOpts.push(`<option value="${id}">${escapeHtml(m.name)}</option>`); 
+        }
+        t_assignee.innerHTML = taskOpts.join("");
+      }
+
+       const paletteColors = ["#7c3aed","#7bd88f", "#ff6b6b", "#1e90ff", "#14b8a6", "#ec4899", "#f97316", "#22c55e", "#06b6d4",];
+       const paletteEl = document.getElementById("colorPalette");
+
+      paletteColors.forEach(color => {
+        const swatch = document.createElement("div");
+        swatch.className = "color-swatch";
+        swatch.style.background = color;
+        swatch.addEventListener("click", () => {
+          document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+          swatch.classList.add("selected");
+          m_color.value = color; 
+        });
+        paletteEl.appendChild(swatch);
+      });
+      const statusPaletteEl = document.getElementById("statusColorPalette");
+        if (statusPaletteEl) {
+          paletteColors.forEach(color => {
+            const swatch = document.createElement("div");
+            swatch.className = "color-swatch";
+            swatch.style.background = color;
+            swatch.addEventListener("click", () => {
+              statusPaletteEl.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+              swatch.classList.add("selected");
+              document.getElementById("s_color").value = color;
+            });
+            statusPaletteEl.appendChild(swatch);
+          });
+        }
+
+
+      /*  Board render  */
+      function clearBoard() {
+        // Clear all task columns
+        for (const [id] of statusCache) {
+          const bodyEl = document.getElementById(`body-${id}`);
+          if (bodyEl) {
+            bodyEl.innerHTML = `
+              <tr>
+                <td class="menu-cell"></td>
+                <td colspan="6" class="empty">No tasks</td>
+                <td class="delete-cell"></td>
+              </tr>`;
+          }
+          
+          // Reset counts
+          const countEl = document.getElementById(`count-${id}`);
+          if (countEl) countEl.textContent = `(0)`;
+        }
+        
+        // Clear the tasks array
+        allTasks = [];
+      }
+
+             function renderBoard(allTasks) {
+         console.log("Rendering board with tasks:", allTasks);
+         console.log("Status cache:", [...statusCache.entries()]);
+         
+         const term = search.value.trim().toLowerCase();
+         const selectedMember = memberFilter.value;
+         let tasks = allTasks;
+
+        // 🔎 filter by search
+        if (term) {
+          tasks = tasks.filter(t =>
+            (t.title || "").toLowerCase().includes(term) ||
+            (t.notes || "").toLowerCase().includes(term)
+          );
+        }
+
+        // 👤 filter by member
+        if (selectedMember) {
+          tasks = tasks.filter(t => 
+            (Array.isArray(t.assigneeIds) && t.assigneeIds.includes(selectedMember)) ||
+            t.assigneeId === selectedMember
+          );
+        }
+
+        // 🗂️ group tasks by status
+        const byStatus = {};
+        // Initialize arrays for ALL statuses in the cache
+        console.log("Status cache keys:", [...statusCache.keys()]);
+        for (const [id] of statusCache) {
+          byStatus[id] = [];
+          console.log("Initialized byStatus for:", id);
+        }
+
+        for (const t of tasks) {
+          console.log("Processing task:", t.id, "with status:", t.status);
+          
+          let statusKey = t.status;
+          
+          // Ensure the status exists in our cache, otherwise use first available status
+          if (!statusKey || !statusCache.has(statusKey)) {
+            console.warn("Task", t.id, "has invalid status:", t.status, "using fallback");
+            statusKey = [...statusCache.keys()][0];
+          }
+          
+          // Double-check that the array exists (defensive programming)
+          if (!byStatus[statusKey]) {
+            console.error("CRITICAL: byStatus[", statusKey, "] is undefined!");
+            console.error("Available keys in byStatus:", Object.keys(byStatus));
+            console.error("Task:", t);
+            byStatus[statusKey] = []; // Create it on the fly
+          }
+          
+          byStatus[statusKey].push(t);
+          console.log("Added task", t.id, "to status:", statusKey);
+        }
+              
+
+        // 🏗️ render tasks into each status column
+        for (const [id] of statusCache) {
+          const bodyEl = document.getElementById(`body-${id}`);
+          if (!bodyEl) continue;
+
+          const list = byStatus[id] || [];
+          if (!list.length) {
+            bodyEl.innerHTML = `
+              <tr>
+                <td class="menu-cell"></td>
+                <td colspan="6" class="empty">No tasks</td>
+                <td class="delete-cell"></td>
+              </tr>`;
+          } else {
+            bodyEl.innerHTML = list.map(renderTask).join("");
+          }
+
+          // update counts
+          const countEl = document.getElementById(`count-${id}`);
+          if (countEl) countEl.textContent = `(${list.length})`;
+        }
+
+        enableInlineEditing();
+
+        // 🔽 init dropdowns
+        document.querySelectorAll(".status-placeholder").forEach(ph => {
+          const taskId = ph.dataset.id;
+          const task = allTasks.find(t => t.id === taskId);
+
+          const options = [...statusCache.values()].map(s => ({
+            label: s.name,
+            value: s.id,
+            color: s.color
+          }));
+
+          makeDropdown(ph, options, task.status || "", async (val) => {
+            // Update task in local storage
+            const taskIndex = allTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+              allTasks[taskIndex] = { 
+                ...allTasks[taskIndex], 
+                status: val, 
+                updatedAt: new Date().toISOString() 
+              };
+              saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+              renderBoard(allTasks);
+            }
+          }, "status");
+        });
+
+        // 🔼 priority dropdowns
+        document.querySelectorAll(".priority-placeholder").forEach(ph => {
+          const taskId = ph.dataset.id;
+          const task = allTasks.find(t => t.id === taskId);
+
+          const options = Object.keys(priorityColors).map(p => ({
+            label: p.charAt(0).toUpperCase() + p.slice(1),
+            value: p,
+            color: priorityColors[p]
+          }));
+
+          makeDropdown(ph, options, task.priority || "", async (val) => {
+            // Update task in local storage
+            const taskIndex = allTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+              allTasks[taskIndex] = { 
+                ...allTasks[taskIndex], 
+                priority: val, 
+                updatedAt: new Date().toISOString() 
+              };
+              saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+              renderBoard(allTasks);
+            }
+          }, "priority");
+        });
+
+        // 👥 owner multi-selects
+        allTasks.forEach(t => {
+          const assignees = Array.isArray(t.assigneeIds)
+            ? t.assigneeIds
+            : (t.assigneeId ? [t.assigneeId] : []);
+          initOwnerDropdowns(t.id, assignees);
+        });
+
+        // 📅 due dates
+        document.querySelectorAll(".due-display").forEach(span => {
+          const taskId = span.dataset.id;
+          const task = allTasks.find(t => t.id === taskId);
+
+          const input = document.createElement("input");
+          input.type = "date";
+          input.value = task?.dueDate || "";
+          input.style.position = "absolute";
+          input.style.opacity = 0;
+          input.style.pointerEvents = "none";
+
+          span.after(input);
+
+          span.addEventListener("click", () => {
+            input.showPicker?.();
+            input.focus();
+          });
+
+          input.addEventListener("change", async () => {
+            const newVal = input.value;
+            // Update task in local storage
+            const taskIndex = allTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+              allTasks[taskIndex] = { 
+                ...allTasks[taskIndex], 
+                dueDate: newVal || null, 
+                updatedAt: new Date().toISOString() 
+              };
+              saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+              renderBoard(allTasks);
+            }
+            span.textContent = formatDateShort(newVal);
+          });
+        });
+
+        // 🗑️ delete task
+        document.querySelectorAll(".delete-task").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const taskId = btn.dataset.id;
+            if (!confirm("Delete this task?")) return;
+            
+            // Remove task from local storage
+            allTasks = allTasks.filter(t => t.id !== taskId);
+            saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+            renderBoard(allTasks);
+          });
+        });
+
+        // Event delegation for task menu items
+        document.addEventListener("click", async (e) => {
+          // Handle menu item clicks
+          const menuItem = e.target.closest(".task-menu-item");
+          if (menuItem) {
+            e.stopPropagation();
+            const menu = menuItem.closest(".task-menu");
+            const taskId = menu.dataset.id;
+            const action = menuItem.dataset.action;
+            const targetStatus = menuItem.dataset.target;
+            
+            if (action && targetStatus) {
+              // Update task in local storage
+              const taskIndex = allTasks.findIndex(t => t.id === taskId);
+              if (taskIndex !== -1) {
+                allTasks[taskIndex] = { 
+                  ...allTasks[taskIndex], 
+                  status: targetStatus, 
+                  updatedAt: new Date().toISOString() 
+                };
+                saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+                renderBoard(allTasks);
+              }
+            }
+            
+            // Close the menu
+            menu.classList.remove("show");
+            return;
+          }
+          
+          // Close menus when clicking outside (existing functionality)
+          document.querySelectorAll(".task-menu.show").forEach(m => m.classList.remove("show"));
+        });
+
+        // Keep the existing menu button toggle functionality
+        document.querySelectorAll(".task-menu-btn").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const taskId = btn.dataset.id;
+            const menu = document.querySelector(`.task-menu[data-id="${taskId}"]`);
+
+            document.querySelectorAll(".task-menu.show").forEach(m => {
+              if (m !== menu) m.classList.remove("show");
+            });
+
+            menu.classList.toggle("show");
+          });
+        });
+      }
+
+      function renderTask(t) {
+        console.log("Rendering task:", t.id, "with status:", t.status);
+        console.log("Status cache keys:", [...statusCache.keys()]);
+        
+        const statusIds = [...statusCache.keys()];
+        const currentStatusIndex = statusIds.indexOf(t.status);
+        console.log("Current status index:", currentStatusIndex);
+        
+        const assignees = Array.isArray(t.assigneeIds)
+          ? t.assigneeIds
+          : (t.assigneeId ? [t.assigneeId] : []);
+
+        const dueFormatted = formatDateShort(t.dueDate);
+
+        // Use first assignee's color for row highlight
+        const firstMember = assignees[0] ? memberCache.get(assignees[0]) : null;
+        const rowStyle = firstMember ? `style="background:${firstMember.color}22"` : "";
+
+        // Build menu options dynamically based on status order
+        let menuItems = "";
+
+        
+        if (currentStatusIndex > 0) {
+          // Can move up (to previous status)
+          const prevStatus = statusCache.get(statusIds[currentStatusIndex - 1]);
+          menuItems += `<div class="task-menu-item" data-action="move-up" data-target="${statusIds[currentStatusIndex - 1]}">
+            <svg viewBox="0 0 24 24" width="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V19M12 5L6 11M12 5L18 11" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Move to ${escapeHtml(prevStatus.name)}
+          </div>`;
+          console.log("Added move-up option for status:", t.id);
+        }
+        
+        if (currentStatusIndex < statusIds.length - 1) {
+          // Can move down (to next status)
+          const nextStatus = statusCache.get(statusIds[currentStatusIndex + 1]);
+          menuItems += `<div class="task-menu-item" data-action="move-down" data-target="${statusIds[currentStatusIndex + 1]}">
+            <svg viewBox="0 0 24 24" width="18" fill="none" xmlns="http://www.w3.org/2000/svg" transform="rotate(180)">
+              <path d="M12 5V19M12 5L6 11M12 5L18 11" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Move to ${escapeHtml(nextStatus.name)}
+          </div>`;
+          console.log("Added move-down option for status:", t.id);
+        }
+
+        return `
+          <tr class="task status-${t.status || 'todo'}" data-id="${t.id}" ${rowStyle}>
+            <td class="menu-cell">
+              <button class="task-menu-btn" data-id="${t.id}" title="Options">⋮</button>
+              <div class="task-menu" data-id="${t.id}">
+                ${menuItems}
+              </div>
+            </td>
+
+            <td class="editable" data-field="title">${escapeHtml(t.title)}</td>
+            
+            <td data-field="owner">
+              <div class="owner-multi" data-id="${t.id}"></div>
+            </td>
+
+            <td data-field="status"><div class="status-placeholder" data-id="${t.id}"></div></td>
+            <td data-field="dueDate"><span class="due-display" data-id="${t.id}">${dueFormatted || "No date"}</span></td>
+            <td data-field="priority"><div class="priority-placeholder" data-id="${t.id}"></div></td>
+            <td class="editable notes-cell" data-field="notes">${escapeHtml(t.notes || "")}</td>
+            <td class="delete-cell"><button class="delete-task" data-id="${t.id}">🗑️</button></td>
+          </tr>
+        `;
+      }
+
+             function renderDynamicColumns(){
+         console.log("Rendering dynamic columns with statuses:", [...statusCache.entries()]);
+         const columnsEl = document.getElementById("boardColumns");
+         columnsEl.innerHTML = "";
+
+         for (const [id, s] of statusCache){
+          const col = document.createElement("div");
+          col.className = "col";
+          col.dataset.col = id;
+          col.style.borderLeftColor = s.color;
+          col.innerHTML = `
+            <header><h3 style="color:${s.color}">${escapeHtml(s.name)} 
+              <span class="count muted" id="count-${id}"></span></h3></header>
+            <div class="dropzone">
+              <table class="task-table">
+                <thead>
+                  <tr>
+                    <th class="menu-head"></th>
+                    <th>Task Name</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="body-${id}"></tbody>
+              </table>
+            </div>
+          `;
+          columnsEl.appendChild(col);
+        }
+        
+      }
+
+      function initOwnerDropdowns(taskId, assignees) {
+        const container = document.querySelector(`.owner-multi[data-id="${taskId}"]`);
+        if (!container) return;
+
+        // Make the entire container clickable to show dropdown
+        container.addEventListener('click', (e) => {
+          // Don't trigger if clicking on remove button
+          if (!e.target.closest('.owner-remove')) {
+            const dropdown = container.querySelector('.owner-dropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+          }
+        });
+
+        function render() {
+          container.innerHTML = '';
+
+          // Render current assignees as colored badges with remove buttons
+          assignees.forEach((assigneeId, index) => {
+            const member = memberCache.get(assigneeId);
+            if (!member) return;
+
+            const badge = document.createElement("span");
+            badge.className = "owner-badge";
+            badge.style.background = member.color + "33";
+            badge.textContent = member.name;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "owner-remove";
+            removeBtn.textContent = "×";
+            removeBtn.addEventListener("click", async (e) => {
+              e.stopPropagation(); // Prevent triggering the container click
+              assignees.splice(index, 1);
+              
+              // Update task in local storage
+              const taskIndex = allTasks.findIndex(t => t.id === taskId);
+              if (taskIndex !== -1) {
+                allTasks[taskIndex] = { 
+                  ...allTasks[taskIndex], 
+                  assigneeIds: assignees, 
+                  updatedAt: new Date().toISOString() 
+                };
+                saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+              }
+              
+              render();
+            });
+
+            badge.appendChild(removeBtn);
+            container.appendChild(badge);
+          });
+
+          // Create dropdown for selecting new members
+          const dropdown = document.createElement("div");
+          dropdown.className = "owner-dropdown";
+          
+          // Add all members as options
+          for (const [id, member] of memberCache) {
+            // Skip if already assigned
+            if (assignees.includes(id)) continue;
+            
+            const item = document.createElement("div");
+            item.className = "dropdown-item";
+            item.textContent = member.name;
+            item.style.background = member.color ? member.color + "33" : "";
+            item.addEventListener("click", async (e) => {
+              e.stopPropagation();
+              assignees.push(id);
+              
+              // Update task in local storage
+              const taskIndex = allTasks.findIndex(t => t.id === taskId);
+              if (taskIndex !== -1) {
+                allTasks[taskIndex] = { 
+                  ...allTasks[taskIndex], 
+                  assigneeIds: assignees, 
+                  updatedAt: new Date().toISOString() 
+                };
+                saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+              }
+              
+              render();
+              dropdown.style.display = 'none';
+            });
+            dropdown.appendChild(item);
+          }
+          
+          container.appendChild(dropdown);
+
+          // Add plus button if there are members available to add
+          if (dropdown.children.length > 0) {
+            const plusBtn = document.createElement("button");
+            plusBtn.className = "owner-add";
+            plusBtn.textContent = "+";
+            plusBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            });
+            container.appendChild(plusBtn);
+          }
+        }
+
+        render();
+
+        // Close dropdown when clicking outside
+        document.addEventListener("click", (e) => {
+          if (!container.contains(e.target)) {
+            const dropdown = container.querySelector('.owner-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+          }
+        });
+      }
+
+      function formatDateShort(dateStr){
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "";
+        return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short" });
+      }
+
+      function makeDropdown(el, options, value, onSelect, fieldType) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "dropdown";
+
+        const selected = document.createElement("div");
+        selected.className = "dropdown-selected";
+
+        const current = options.find(o => o.value === value);
+        selected.innerHTML = `<span>${current ? current.label : "Unassigned"}</span>
+                              <span class="dropdown-arrow">▼</span>`;
+        wrapper.appendChild(selected);
+
+        const list = document.createElement("div");
+        list.className = "dropdown-list";
+
+        options.forEach(opt => {
+          const item = document.createElement("div");
+          item.className = "dropdown-item";
+          item.textContent = opt.label;
+
+          if (opt.color) {
+            if (fieldType === "owner") {
+              item.style.background = opt.color + "66"; 
+            }else{
+              item.style.background = opt.color; 
+              item.style.color = "#fff"; 
+            }
+          }
+
+          item.addEventListener("click", () => {
+            selected.querySelector("span").textContent = opt.label;
+            list.classList.remove("show");
+
+            const td = wrapper.closest("td");
+
+            if (opt.color) {
+              if (fieldType === "owner") {
+                td.style.background = opt.color + "66"; 
+                td.style.color = "#000";
+              } else if (fieldType === "priority") {
+                td.style.background = opt.color;
+                if (opt.value === "high" || opt.value === "urgent") {
+                  td.style.color = "#fff";  
+                } else {
+                  td.style.color = "#000"; 
+                }
+              } else {
+                td.style.background = opt.color; 
+                td.style.color = "#fff"; 
+              }
+            } else {
+              td.style.background = "#f0f0f0";
+              td.style.color = "#000";
+            }
+
+            onSelect(opt.value, opt.color);
+          });
+
+          list.appendChild(item);
+        });
+
+        wrapper.appendChild(list);
+
+        selected.addEventListener("click", () => {
+          list.classList.toggle("show");
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!wrapper.contains(e.target)) list.classList.remove("show");
+        });
+
+        el.replaceWith(wrapper);
+
+        const td = wrapper.closest("td");
+        if (current?.color) {
+          if (fieldType === "owner") {
+            td.style.background = current.color + "22"; 
+            td.style.color = "#000";
+          } else if (fieldType === "priority") {
+            td.style.background = current.color;
+            td.style.color = (value === "high" || value === "urgent") 
+              ? "#fff" 
+              : "#000";
+          } else {
+            td.style.background = current.color; 
+            td.style.color = "#000";  
+          }
+        } else {
+          td.style.background = "#f0f0f0";
+          td.style.color = "#000";
+        }
+      }
+
+      /* Analytics */
+      const analyticsBtn = document.getElementById("analyticsBtn");
+      const analyticsView = document.getElementById("analyticsView");
+      const backToBoard = document.getElementById("backToBoard");
+      let taskChart = null;
+      let ownerChart = null;
+
+      analyticsBtn.addEventListener("click", () => {
+        appView.classList.add("hidden");
+        analyticsView.classList.remove("hidden");
+        renderAnalytics();
+      });
+
+      backToBoard.addEventListener("click", () => {
+        analyticsView.classList.add("hidden");
+        appView.classList.remove("hidden");
+      });
+
+             function renderAnalytics() {
+         console.log("Rendering analytics with tasks:", allTasks);
+         console.log("Member cache:", [...memberCache.entries()]);
+         
+         // 🟦 build dynamic counts from statusCache
+         const counts = {};
+         for (const [id] of statusCache) {
+           counts[id] = 0;
+         }
+         for (const t of allTasks) {
+           const key = t.status && counts.hasOwnProperty(t.status) ? t.status : [...statusCache.keys()][0]; 
+           counts[key]++;
+         }
+
+        // 🟦 update totals (if you want to keep these UI counters)
+        document.getElementById("allTasksCount").innerText = allTasks.length;
+        // fallback: show 0 if specific default statuses don't exist
+        document.getElementById("doingCount").innerText = counts.doing || 0;
+        document.getElementById("doneCount").innerText = counts.done || 0;
+        document.getElementById("stuckCount").innerText = counts.stuck || 0;
+
+        // 🟦 tasks by status (dynamic pie)
+        const ctx = document.getElementById("taskChart").getContext("2d");
+        if (taskChart) taskChart.destroy();
+        taskChart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: [...statusCache.values()].map(s => s.name),
+            datasets: [{
+              data: [...statusCache.keys()].map(id => counts[id]),
+              backgroundColor: [...statusCache.values()].map(s => s.color || "#cccccc")
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                align: "center",
+                labels: {
+                  color: "#fff",
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                }
+              },
+              datalabels: {
+                color: "#fff",
+                formatter: (value, ctx) => {
+                  let sum = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+                  return sum ? (value * 100 / sum).toFixed(1) + "%" : "";
+                },
+                font: { weight: "bold" }
+              }
+            }
+          },
+          plugins: [ChartDataLabels]
+        });
+
+                 // 🟦 tasks by owner
+         const ownerCtx = document.getElementById("ownerChart").getContext("2d");
+         const owners = {};
+
+         console.log("Processing tasks for owner analytics:", allTasks.length);
+         for (const t of allTasks) {
+           console.log("Task:", t.title, "assigneeIds:", t.assigneeIds, "assigneeId:", t.assigneeId);
+           
+           if (Array.isArray(t.assigneeIds) && t.assigneeIds.length > 0) {
+             // Task has multiple assignees
+             t.assigneeIds.forEach(id => {
+               const member = memberCache.get(id);
+               const name = member ? member.name : "Unknown";
+               owners[name] = (owners[name] || 0) + 1;
+               console.log("Added assignee:", name, "for task:", t.title);
+             });
+           } else if (t.assigneeId && t.assigneeId !== "") {
+             // Task has single assignee (legacy format)
+             const member = memberCache.get(t.assigneeId);
+             const name = member ? member.name : "Unknown";
+             owners[name] = (owners[name] || 0) + 1;
+             console.log("Added single assignee:", name, "for task:", t.title);
+           } else {
+             // Task has no assignee
+             owners["Unassigned"] = (owners["Unassigned"] || 0) + 1;
+             console.log("Added unassigned for task:", t.title);
+           }
+         }
+         
+         console.log("Final owners object:", owners);
+
+                 const labels = Object.keys(owners);
+         const data = Object.values(owners);
+         const colors = labels.map(name => {
+           const member = [...memberCache.values()].find(m => m.name === name);
+           return member?.color || "#3b82f6";
+         });
+
+         console.log("Chart data - Labels:", labels, "Data:", data, "Colors:", colors);
+
+         if (ownerChart) ownerChart.destroy();
+         ownerChart = new Chart(ownerCtx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "Tasks",
+              data,
+              backgroundColor: colors
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+              padding: { top: 30 }   
+            },
+            scales: {
+              x: { ticks: { color:"#fff" } },
+              y: { ticks: { color:"#fff", precision:0 } }
+            },
+            plugins: { 
+              legend: { display: false },
+              datalabels: {
+                color: "#fff",
+                anchor: "end",
+                align: "top",
+                font: { weight: "bold" }
+              }
+            }
+          },
+          plugins: [ChartDataLabels]
+        });
+      }
+
+      /* Statuses */
+      function renderStatusesPanel() {
+        if (!statusCache.size) { 
+          statusesList.innerHTML = '<div class="muted">No statuses yet.</div>'; 
+          return; 
+        }
+        const rows = [];
+        for (const [id, s] of statusCache) {
+          const isCore = ["todo","doing","done","stuck"].includes(id);
+          rows.push(`
+            <div class="member-chip" data-id="${id}">
+              <span class="member-swatch" style="background:${s.color}"></span>
+              <span>${escapeHtml(s.name)}</span>
+              ${!isCore ? `<button class="btn" data-action="delete" style="padding:.15rem .4rem; color:#FF474D">Remove</button>` : ""}
+            </div>
+          `);
+        }
+        statusesList.innerHTML = rows.join("");
+
+        statusesList.querySelectorAll(".member-chip").forEach(chip => {
+          const btn = chip.querySelector("[data-action='delete']");
+          if (!btn) return; // skip core statuses
+          btn.addEventListener("click", async () => {
+            if (!confirm("Delete this status? Tasks will remain but default to To-do.")) return;
+            
+            // Remove from local storage
+            const statuses = getFromStorage(STORAGE_KEYS.STATUSES, []);
+            const updatedStatuses = statuses.filter(s => s.id !== chip.dataset.id);
+            saveToStorage(STORAGE_KEYS.STATUSES, updatedStatuses);
+            
+            // Update cache and re-render
+            statusCache.delete(chip.dataset.id);
+            renderStatusesPanel();
+            renderDynamicColumns();
+            populateStatusSelect();
+          });
+        });
+      }
+
+      function populateStatusSelect(){
+        const opts = [];
+        for (const [id, s] of statusCache){
+          opts.push(`<option value="${id}">${escapeHtml(s.name)}</option>`);
+        }
+        t_status.innerHTML = opts.join("");
+      }
+
+
+       /* CRUD */
+      manageStatusesBtn.addEventListener("click", ()=> statusesDialog.showModal());
+      closeStatuses.addEventListener("click", ()=> statusesDialog.close());
+
+      statusForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = { 
+          id: generateId(),
+          name: s_name.value.trim(), 
+          color: document.getElementById("s_color").value || "#cccccc", 
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        if (!payload.name) return alert("Status name is required");
+
+        // Check if name matches a default (prevent overwriting)
+        const exists = [...statusCache.values()].find(s => s.name.toLowerCase() === payload.name.toLowerCase());
+        if (exists) return alert("That status already exists");
+
+        // Add to local storage
+        const statuses = getFromStorage(STORAGE_KEYS.STATUSES, []);
+        statuses.push(payload);
+        saveToStorage(STORAGE_KEYS.STATUSES, statuses);
+        
+        // Update cache and re-render
+        statusCache.set(payload.id, payload);
+        renderStatusesPanel();
+        renderDynamicColumns();
+        populateStatusSelect();
+        
+        statusForm.reset();
+      });
+
+
+      newTaskBtn.addEventListener('click', ()=> openTask());
+      search.addEventListener('input', ()=> startRealtime());
+
+      taskForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        
+        // Get selected assignees from multi-select
+        const selectedAssignees = Array.from(t_assignee.selectedOptions).map(option => option.value);
+        
+        const payload = {
+          title: t_title.value.trim(),
+          assigneeIds: selectedAssignees.length > 0 ? selectedAssignees : null,
+          dueDate: t_due.value || null,
+          priority: t_priority.value,
+          status: t_status.value,
+          notes: t_notes.value.trim(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        if (!payload.title) return alert('Title is required');
+        const id = t_id.value;
+        
+        if (id) {
+          // Update existing task
+          const taskIndex = allTasks.findIndex(t => t.id === id);
+          if (taskIndex !== -1) {
+            allTasks[taskIndex] = { ...allTasks[taskIndex], ...payload };
+            saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+          }
+        } else {
+          // Create new task
+          const newTask = { 
+            ...payload, 
+            id: generateId(),
+            createdAt: new Date().toISOString() 
+          };
+          allTasks.push(newTask);
+          saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+        }
+        
+        renderBoard(allTasks);
+        taskDialog.close();
+      });
+
+      deleteTaskBtn.addEventListener('click', async ()=>{
+        const id = t_id.value; if (!id) return; if (!confirm('Delete this task?')) return;
+        
+        // Remove task from local storage
+        allTasks = allTasks.filter(t => t.id !== id);
+        saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+        
+        renderBoard(allTasks);
+        taskDialog.close();
+      });
+
+            async function openTask(id){
+        resetTaskForm();
+        taskDialogTitle.textContent = id ? 'Edit task' : 'New task';
+        if (id){
+          const task = allTasks.find(t => t.id === id);
+          if (task){
+            t_id.value = id;
+            t_title.value = task.title||'';
+            
+            // Handle both old single assignee and new multi-assignee format
+            if (Array.isArray(task.assigneeIds)) {
+              Array.from(t_assignee.options).forEach(option => {
+                option.selected = task.assigneeIds.includes(option.value);
+              });
+            } else if (task.assigneeId) {
+              Array.from(t_assignee.options).forEach(option => {
+                option.selected = option.value === task.assigneeId;
+              });
+            }
+            
+            t_due.value = task.dueDate||'';
+            t_priority.value = task.priority||'medium';
+            t_status.value = task.status||'todo';
+            t_notes.value = task.notes||'';
+            deleteTaskBtn.classList.remove('hidden');
+          }
+        } else { deleteTaskBtn.classList.add('hidden'); }
+        taskDialog.showModal();
+      }
+      
+      function resetTaskForm(){ 
+        taskForm.reset(); 
+        t_id.value = ''; 
+        // Clear any selected options in the multi-select
+        Array.from(t_assignee.options).forEach(option => {
+          option.selected = false;
+        });
+      }
+
+      /* Members */
+      manageMembersBtn.addEventListener('click', ()=> membersDialog.showModal());
+      closeMembers.addEventListener('click', ()=> membersDialog.close());
+
+      memberForm.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const payload = { 
+          id: generateId(),
+          name: m_name.value.trim(), 
+          surname: m_surname.value.trim(), 
+          email: m_email.value.trim(), 
+          color: m_color.value, 
+          createdAt: new Date().toISOString(), 
+          updatedAt: new Date().toISOString() 
+        };
+        if (!payload.name || !payload.surname) return alert('Name & Surname are required');
+        
+        // Add to local storage
+        const members = getFromStorage(STORAGE_KEYS.MEMBERS, []);
+        members.push(payload);
+        saveToStorage(STORAGE_KEYS.MEMBERS, members);
+        
+        // Update cache and re-render
+        memberCache.set(payload.id, payload);
+        renderMembersPanel();
+        populateAssigneeSelect();
+        
+        memberForm.reset();
+      });
+
+      function renderMembersPanel(){
+        if (!memberCache.size){ membersList.innerHTML = '<div class="muted">No members yet — add your team above.</div>'; return; }
+        const rows = [];
+        for (const [id, m] of memberCache){
+          rows.push(`
+            <div class="member-chip" data-id="${id}" title="${escapeHtml(m.email||'')}">
+              <span class="member-swatch" style="background:${m.color||'#7c3aed'}"></span>
+              <span class="avatar">${m.avatar||'👤'}</span>
+              <span>${escapeHtml(m.name)} ${escapeHtml(m.surname)}</span>
+              <button class="btn" data-action="assign" style="padding:.15rem .4rem">Assign to new task</button>
+              <button class="btn" data-action="delete" style="padding:.15rem .4rem; color: #FF474D">Remove</button>
+            </div>`);
+        }
+        membersList.innerHTML = rows.join('');
+        membersList.querySelectorAll('.member-chip').forEach(chip => {
+          chip.querySelector('[data-action="delete"]').addEventListener('click', async (e)=>{
+            e.stopPropagation();
+            const id = chip.dataset.id; if (!confirm('Delete this member? Tasks remain but will show Unassigned.')) return;
+            
+            // Remove from local storage
+            const members = getFromStorage(STORAGE_KEYS.MEMBERS, []);
+            const updatedMembers = members.filter(m => m.id !== id);
+            saveToStorage(STORAGE_KEYS.MEMBERS, updatedMembers);
+            
+            // Update cache and re-render
+            memberCache.delete(id);
+            renderMembersPanel();
+            populateAssigneeSelect();
+          });
+          chip.querySelector('[data-action="assign"]').addEventListener('click', (e)=>{
+            e.stopPropagation();
+            // Select this member in the task dialog
+            Array.from(t_assignee.options).forEach(option => {
+              option.selected = option.value === chip.dataset.id;
+            });
+            membersDialog.close();
+            openTask();
+          });
+        });
+      }
+
+      /*  Utilities  */
+      function escapeHtml(str=''){ return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+      function enableInlineEditing() {
+        document.querySelectorAll("td.editable").forEach(td => {
+          const field = td.dataset.field;
+          if (field !== "title" && field !== "notes") return;
+          td.addEventListener("click", () => makeCellEditable(td));
+        });
+      }
+      
+      function makeCellEditable(td) {
+        const taskId = td.closest("tr").dataset.id;
+        const field = td.dataset.field;
+        const oldValue = td.textContent.trim();
+
+        if (td.querySelector("input, select")) return;
+
+        let input;
+        if (field === "title" || field === "notes") {
+          input = document.createElement("input");
+          input.type = "text";
+          input.value = oldValue;
+        }
+
+        td.textContent = "";
+        td.appendChild(input);
+        input.focus();
+        td.style.cursor = "text";  
+
+        input.addEventListener("blur", async () => {
+          let newValue = input.value;  
+          td.textContent = newValue;
+
+          let update = {};
+          update[field] = newValue;
+
+          if (Object.keys(update).length) {
+            // Update task in local storage
+            const taskIndex = allTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+              allTasks[taskIndex] = { 
+                ...allTasks[taskIndex], 
+                ...update, 
+                updatedAt: new Date().toISOString() 
+              };
+              saveToStorage(STORAGE_KEYS.TASKS, allTasks);
+            }
+          }
+
+          td.style.cursor = "pointer"; 
+        });
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") input.blur();
+          if (e.key === "Escape") {
+            td.textContent = oldValue;
+            td.style.cursor = "pointer";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
