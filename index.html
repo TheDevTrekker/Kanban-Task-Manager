@@ -901,7 +901,7 @@ td[data-field="owner"] {
         }
 
 
-      /*  Board render  */
+      /*  ----BOARD RENDER----  */
       function clearBoard() {
         // Clear all task columns
         for (const [id] of statusCache) {
@@ -929,7 +929,7 @@ td[data-field="owner"] {
          const selectedMember = memberFilter.value;
          let tasks = allTasks;
 
-        // 🔎 filter by search
+        // FILTER BY SEARCH
         if (term) {
           tasks = tasks.filter(t =>
             (t.title || "").toLowerCase().includes(term) ||
@@ -937,7 +937,7 @@ td[data-field="owner"] {
           );
         }
 
-        // 👤 filter by member
+        // FILTER BY MEMBER
         if (selectedMember) {
           tasks = tasks.filter(t => 
             (Array.isArray(t.assigneeIds) && t.assigneeIds.includes(selectedMember)) ||
@@ -945,7 +945,7 @@ td[data-field="owner"] {
           );
         }
 
-        // 🗂️ group tasks by status
+        // GROUP TASKS BY STATUS
         const byStatus = {};
         // Initialize arrays for ALL statuses in the cache
         console.log("Status cache keys:", [...statusCache.keys()]);
@@ -978,7 +978,7 @@ td[data-field="owner"] {
         }
               
 
-        // 🏗️ render tasks into each status column
+        // RENDER TASKS INTO EACH STATUS COLUMN
         for (const [id] of statusCache) {
           const bodyEl = document.getElementById(`body-${id}`);
           if (!bodyEl) continue;
@@ -1002,7 +1002,7 @@ td[data-field="owner"] {
 
         enableInlineEditing();
 
-        // 🔽 init dropdowns
+        // INIT DROPDOWNS
         document.querySelectorAll(".status-placeholder").forEach(ph => {
           const taskId = ph.dataset.id;
           const task = allTasks.find(t => t.id === taskId);
@@ -1028,7 +1028,7 @@ td[data-field="owner"] {
           }, "status");
         });
 
-        // 🔼 priority dropdowns
+        // PRIORITY DROPDOWNS
         document.querySelectorAll(".priority-placeholder").forEach(ph => {
           const taskId = ph.dataset.id;
           const task = allTasks.find(t => t.id === taskId);
@@ -1054,7 +1054,7 @@ td[data-field="owner"] {
           }, "priority");
         });
 
-        // 👥 owner multi-selects
+        // OWNER MULTI-SELECTS
         allTasks.forEach(t => {
           const assignees = Array.isArray(t.assigneeIds)
             ? t.assigneeIds
@@ -1062,7 +1062,7 @@ td[data-field="owner"] {
           initOwnerDropdowns(t.id, assignees);
         });
 
-        // 📅 due dates
+        // DUE DATES
         document.querySelectorAll(".due-display").forEach(span => {
           const taskId = span.dataset.id;
           const task = allTasks.find(t => t.id === taskId);
@@ -1098,7 +1098,7 @@ td[data-field="owner"] {
           });
         });
 
-        // 🗑️ delete task
+        // DELETE TASK
         document.querySelectorAll(".delete-task").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
@@ -1114,7 +1114,6 @@ td[data-field="owner"] {
 
         // Event delegation for task menu items
         document.addEventListener("click", async (e) => {
-          // Handle menu item clicks
           const menuItem = e.target.closest(".task-menu-item");
           if (menuItem) {
             e.stopPropagation();
@@ -1137,7 +1136,6 @@ td[data-field="owner"] {
               }
             }
             
-            // Close the menu
             menu.classList.remove("show");
             return;
           }
@@ -1843,7 +1841,7 @@ td[data-field="owner"] {
         renderBoard(allTasks); // Refresh the board to show new member in task assignments
         
         memberForm.reset();
-        membersDialog.close(); // Close the dialog after successful addition
+        membersDialog.close(); 
       });
 
       function renderMembersPanel(){
