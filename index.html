@@ -919,9 +919,6 @@ td[data-field="owner"] {
           const countEl = document.getElementById(`count-${id}`);
           if (countEl) countEl.textContent = `(0)`;
         }
-        
-        // Clear the tasks array
-        allTasks = [];
       }
 
              function renderBoard(allTasks) {
@@ -1668,9 +1665,11 @@ td[data-field="owner"] {
             renderStatusesPanel();
             renderDynamicColumns();
             populateStatusSelect();
+
+            renderBoard(allTasks);
           });
         });
-      }
+        }
 
       function populateStatusSelect(){
         const opts = [];
@@ -1711,7 +1710,12 @@ td[data-field="owner"] {
         renderDynamicColumns();
         populateStatusSelect();
         
+        // Reset form and close dialog
         statusForm.reset();
+        statusesDialog.close();
+        
+        // Finally, re-render the board with the updated statuses
+        renderBoard(allTasks);
       });
 
 
