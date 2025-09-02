@@ -1837,10 +1837,13 @@ td[data-field="owner"] {
         
         // Update cache and re-render
         memberCache.set(payload.id, payload);
+        // Re-render everything that depends on members
         renderMembersPanel();
         populateAssigneeSelect();
+        renderBoard(allTasks); // Refresh the board to show new member in task assignments
         
         memberForm.reset();
+        membersDialog.close(); // Close the dialog after successful addition
       });
 
       function renderMembersPanel(){
@@ -1869,8 +1872,10 @@ td[data-field="owner"] {
             
             // Update cache and re-render
             memberCache.delete(id);
+            // Re-render everything that depends on members
             renderMembersPanel();
             populateAssigneeSelect();
+            renderBoard(allTasks);
           });
           chip.querySelector('[data-action="assign"]').addEventListener('click', (e)=>{
             e.stopPropagation();
